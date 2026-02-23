@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Discursos | Barrio Central</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <nav>
+        <div class="brand">
+            <a href="index.html"
+                style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m15 18-6-6 6-6" />
+                </svg>
+                Gestión de Discursos
+            </a>
+        </div>
+        <div class="user-profile" id="userProfile" style="display: none;">
+            <span id="userName" style="font-size: 0.875rem; font-weight: 500;"></span>
+            <img src="" alt="User" class="user-img" id="userImg">
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Dashboard Top Section -->
+        <div class="dashboard-grid">
+            <!-- Left: Sugerencia -->
+            <div class="card suggestion-highlight">
+                <div class="section-title">
+                    <h2 style="color: white; opacity: 0.9;">Sugerencia de hoy</h2>
+                </div>
+                <div id="suggestedSpeakerContent">
+                    <div style="font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem;" id="suggestedName">
+                        Calculando...</div>
+                    <div style="opacity: 0.8; font-size: 0.875rem;" id="suggestedReason">Buscando al hermano con más
+                        tiempo sin discursar.</div>
+                    <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-record" onclick="openRecordModal()">Registrar Discurso</button>
+                        <button class="btn"
+                            style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 0.875rem;"
+                            onclick="window.markSuggestedAsLessActive()">Marcar Menos Activo</button>
+                        <button class="btn"
+                            style="background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 0.875rem;"
+                            onclick="window.nextSuggestion()">Ver otra sugerencia</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Filtros Rápidos -->
+            <div class="card">
+                <div class="section-title">
+                    <h2>Filtros de Organización</h2>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;" id="orgFilters">
+                    <button class="btn btn-primary" onclick="filterByOrg('all')">Todos</button>
+                    <button class="btn" style="background: #fee2e2; color: #991b1b;"
+                        onclick="filterByOrg('Soc. Socorro')">Soc. Socorro</button>
+                    <button class="btn" style="background: #dcfce7; color: #166534;"
+                        onclick="filterByOrg('Quórum Élderes')">Quórum Élderes</button>
+                    <button class="btn" style="background: #dbeafe; color: #1e40af;"
+                        onclick="filterByOrg('HHJJ')">HHJJ</button>
+                    <button class="btn" style="background: #fef9c3; color: #854d0e;"
+                        onclick="filterByOrg('MMJJ')">MMJJ</button>
+                    <button class="btn" style="background: #f3e8ff; color: #6b21a8;"
+                        onclick="filterByOrg('Primaria')">Primaria</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Speakers Slider -->
+        <section style="margin: 2rem 0;">
+            <div class="section-title">
+                <h2>Discursaron recientemente</h2>
+            </div>
+            <div class="recent-list" id="recentSpeakersList">
+                <!-- Loaded dynamically -->
+                <div class="recent-card"><span>Cargando...</span></div>
+            </div>
+        </section>
+
+        <!-- Master List -->
+        <section class="card">
+            <div class="section-title">
+                <h2>Directorio de Miembros <span id="memberCount"
+                        style="font-size: 0.875rem; font-weight: 500; color: var(--text-muted); background: #f1f5f9; padding: 0.2rem 0.6rem; border-radius: 20px; margin-left: 0.5rem;">0</span>
+                </h2>
+                <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                    <div class="checkbox-wrapper"
+                        style="background: #f1f5f9; padding: 0.5rem 1rem; border-radius: 8px;">
+                        <input type="checkbox" id="hideLessActive" onchange="window.toggleHideLessActive(this.checked)">
+                        <label for="hideLessActive" style="cursor:pointer; font-weight:600; font-size: 0.75rem;">Ocultar
+                            Menos Activos</label>
+                    </div>
+                    <select id="sortMembers" class="search-input"
+                        style="margin-bottom: 0; width: auto; font-size: 0.875rem;" onchange="renderTable()">
+                        <option value="nombre">Ordenar por Nombre</option>
+                        <option value="fecha_asc">Fecha: Más antigua</option>
+                        <option value="fecha_desc">Fecha: Más reciente</option>
+                        <option value="edad">Ordenar por Edad</option>
+                    </select>
+                    <input type="text" id="memberSearch" placeholder="Nombre o tema..." class="search-input"
+                        style="margin-bottom: 0; min-width: 200px;">
+                    <button class="btn" style="background: #f1f5f9; color: #475569;"
+                        onclick="deduplicateMembers()">Limpiar Duplicados</button>
+                    <button class="btn btn-primary" onclick="openImportModal()">Importar</button>
+                </div>
+            </div>
+
+            <table id="membersTable">
+                <thead>
+                    <tr>
+                        <th>Miembro</th>
+                        <th>Org.</th>
+                        <th>Edad</th>
+                        <th>Última Fecha</th>
+                        <th>Tema</th>
+                        <th>Acción</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="membersBody">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <!-- Modals (Simple implementations) -->
+    <div id="modalOverlay"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <!-- Record Modal -->
+        <div class="card" id="recordModal" style="max-width: 500px; width: 90%; display: none;">
+            <div class="section-title">
+                <h2>Registrar Discurso</h2>
+                <button onclick="closeModal()" style="background:none; border:none; cursor:pointer;">&times;</button>
+            </div>
+            <p id="recordMemberName" style="font-weight:700; margin-bottom: 1rem;"></p>
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600;">Fecha</label>
+                    <input type="date" id="discursoDate" class="search-input">
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 600;">Tema</label>
+                    <input type="text" id="discursoTopic" class="search-input" placeholder="Ej: La Expiación">
+                </div>
+                <button class="btn btn-primary" onclick="saveDiscurso()">Guardar Participación</button>
+            </div>
+        </div>
+
+        <!-- Import Modal -->
+        <div class="card" id="importModal" style="max-width: 500px; width: 90%; display: none;">
+            <div class="section-title">
+                <h2>Importar Miembros (CSV)</h2>
+                <button onclick="closeModal()" style="background:none; border:none; cursor:pointer;">&times;</button>
+            </div>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Pegue los datos del Excel/PDF. <br>
+                Formato: <strong>Nombre, Sexo, Edad, Fecha de Nacimiento</strong>
+            </p>
+            <textarea id="csvData" class="search-input" rows="8"
+                placeholder="Adame Neri María, M, 63, 21 Jul 1962&#10;Alemán Escamilla Nefi, V, 37, 15 Jun 1988"></textarea>
+            <button class="btn btn-primary" onclick="processImport()" style="width:100%;">Cargar a Base de
+                Datos</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/discursos.js"></script>
+</body>
+
+</html>
