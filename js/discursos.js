@@ -9,6 +9,7 @@ const db = getFirestore(app);
 let allMembers = [];
 let currentFilter = 'all';
 let hideLessActive = false;
+let showOnlyParticipants = false;
 let skippedSuggestions = new Set();
 
 // --- Initialization ---
@@ -96,10 +97,12 @@ function calculateSuggestion() {
     }
 
     const suggested = candidates[0];
+    const edadText = suggested.edad ? ` • ${suggested.edad} años` : '';
+
     document.getElementById('suggestedName').textContent = suggested.nombre;
     document.getElementById('suggestedReason').textContent = suggested.lastDate
-        ? `Última vez: ${formatDate(suggested.lastDate)} (${suggested.organizacion})`
-        : `¡Nunca ha discursado en el sistema! (${suggested.organizacion})`;
+        ? `Última vez: ${formatDate(suggested.lastDate)} (${suggested.organizacion}${edadText})`
+        : `¡Nunca ha discursado en el sistema! (${suggested.organizacion}${edadText})`;
 
     window.currentSuggestedId = suggested.id;
     window.currentSuggestedName = suggested.nombre;
@@ -115,6 +118,11 @@ function renderTable(search = '') {
     // Toggle: Hide less active
     if (hideLessActive) {
         filtered = filtered.filter(m => !m.isLessActive);
+    }
+
+    // Toggle: Show only participants (with lastDate)
+    if (showOnlyParticipants) {
+        filtered = filtered.filter(m => m.lastDate);
     }
 
     // Filter by Org
@@ -165,20 +173,20 @@ function renderTable(search = '') {
         if (m.isLessActive) tr.style.opacity = '0.5';
 
         tr.innerHTML = `
-            <td>
+            <td data-label="Miembro">
                 <div style="font-weight:600">${m.nombre}</div>
                 <div style="font-size:0.65rem; color:var(--text-muted)">🎂 ${m.fechaNacimiento || 'Sin fecha'}</div>
             </td>
-            <td><span class="tag ${getOrgClass(m.organizacion)}">${m.organizacion}</span></td>
-            <td>${m.edad || '--'}</td>
-            <td>${formatDate(m.lastDate)}</td>
-            <td>${m.lastTopic || '---'}</td>
-            <td>
+            <td data-label="Org."><span class="tag ${getOrgClass(m.organizacion)}">${m.organizacion}</span></td>
+            <td data-label="Edad">${m.edad || '--'}</td>
+            <td data-label="Última Fecha">${formatDate(m.lastDate)}</td>
+            <td data-label="Tema">${m.lastTopic || '---'}</td>
+            <td data-label="Acción">
                 <button class="btn btn" onclick="window.prepareRecord('${m.id}', '${m.nombre}')" style="font-size:0.75rem; border:1px solid #ddd">
                     ${m.lastDate ? 'Editar' : 'Asignar'}
                 </button>
             </td>
-            <td>
+            <td data-label="Estado">
                 <div class="checkbox-wrapper">
                     <input type="checkbox" ${m.isLessActive ? 'checked' : ''} onchange="window.toggleStatus('${m.id}', 'isLessActive', this.checked)">
                     Menos Activo
@@ -237,6 +245,13 @@ window.filterByOrg = (org) => {
 
 window.toggleHideLessActive = (value) => {
     hideLessActive = value;
+    renderTable();
+};
+
+window.renderTable = renderTable;
+
+window.toggleShowOnlyParticipants = (value) => {
+    showOnlyParticipants = value;
     renderTable();
 };
 

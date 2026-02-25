@@ -96,8 +96,16 @@
                         <label for="hideLessActive" style="cursor:pointer; font-weight:600; font-size: 0.75rem;">Ocultar
                             Menos Activos</label>
                     </div>
+                    <div class="checkbox-wrapper"
+                        style="background: #e0f2fe; padding: 0.5rem 1rem; border-radius: 8px;">
+                        <input type="checkbox" id="showOnlyParticipants"
+                            onchange="window.toggleShowOnlyParticipants(this.checked)">
+                        <label for="showOnlyParticipants"
+                            style="cursor:pointer; font-weight:600; font-size: 0.75rem; color: #0369a1;">Solo con
+                            Registros</label>
+                    </div>
                     <select id="sortMembers" class="search-input"
-                        style="margin-bottom: 0; width: auto; font-size: 0.875rem;" onchange="renderTable()">
+                        style="margin-bottom: 0; width: auto; font-size: 0.875rem;" onchange="window.renderTable()">
                         <option value="nombre">Ordenar por Nombre</option>
                         <option value="fecha_asc">Fecha: Más antigua</option>
                         <option value="fecha_desc">Fecha: Más reciente</option>
@@ -106,7 +114,7 @@
                     <input type="text" id="memberSearch" placeholder="Nombre o tema..." class="search-input"
                         style="margin-bottom: 0; min-width: 200px;">
                     <button class="btn" style="background: #f1f5f9; color: #475569;"
-                        onclick="deduplicateMembers()">Limpiar Duplicados</button>
+                        onclick="window.deduplicateMembers()">Limpiar Duplicados</button>
                     <button class="btn btn-primary" onclick="openImportModal()">Importar</button>
                 </div>
             </div>
