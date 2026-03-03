@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barrio Management | Asignaciones</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .pending-count {
+            color: #ef4444;
+        }
+
+        .completed-count {
+            color: #22c55e;
+        }
+
+        .task-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #ddd;
+            transition: transform 0.2s;
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .task-card.pending {
+            border-left-color: #ef4444;
+        }
+
+        .task-card.completed {
+            border-left-color: #22c55e;
+            opacity: 0.8;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .task-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
+
+        .task-desc {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+            line-height: 1.4;
+        }
+
+        .task-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-complete {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+
+        .btn-complete:hover {
+            background: #16a34a;
+        }
+
+        #adminPanel {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            border: 1px dashed #cbd5e1;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.6rem;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            font-family: inherit;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-action {
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.4rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: white;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .btn-edit:hover {
+            background: #f0f9ff;
+            border-color: #0369a1;
+            color: #0369a1;
+        }
+
+        .btn-delete:hover {
+            background: #fef2f2;
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="modal-overlay" id="editModalOverlay">
+        <div class="modal-content">
+            <h3 style="margin-top:0">Editar Tarea</h3>
+            <div class="form-group">
+                <label>Responsable</label>
+                <select id="editTaskAssignee" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <label>Título</label>
+                <input type="text" id="editTaskTitle" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <textarea id="editTaskDesc" class="form-control" rows="3"></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button class="btn btn-primary" onclick="window.updateTask()" style="flex:1">Guardar Cambios</button>
+                <button class="btn" onclick="window.closeEditModal()"
+                    style="flex:1; background:#f1f5f9">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    <nav>
+        <div class="brand">
+            <a href="index.html"
+                style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                Asignaciones
+            </a>
+        </div>
+        <div class="user-profile" id="userProfile" style="display: none;">
+            <span id="userName" style="font-size: 0.875rem; font-weight: 500; text-align: right;"></span>
+            <img src="" alt="User" class="user-img" id="userImg">
+            <button onclick="handleLogout()" class="btn"
+                style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Salir</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header style="margin-bottom: 2rem;">
+            <h1>Mis Asignaciones</h1>
+            <p id="viewSubtitle">Gestiona las tareas y responsabilidades del barrio.</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number pending-count" id="countPending">0</span>
+                <span class="stat-label">Pendientes</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number completed-count" id="countCompleted">0</span>
+                <span class="stat-label">Completadas</span>
+            </div>
+        </div>
+
+        <!-- Panel del Obispo para crear tareas -->
+        <div id="adminPanel" style="display: none;">
+            <h3 style="margin-top: 0;">Nueva Asignación</h3>
+            <div class="form-group">
+                <label>Responsable</label>
+                <select id="taskAssignee" class="form-control">
+                    <!-- Dinámico desde roles.js -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Título de la Tarea</label>
+                <input type="text" id="taskTitle" class="form-control"
+                    placeholder="Ej: Revisar informes de ministración">
+            </div>
+            <div class="form-group">
+                <label>Descripción (Opcional)</label>
+                <textarea id="taskDesc" class="form-control" rows="2" placeholder="Detalles adicionales..."></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="window.createTask()">Asignar Tarea</button>
+        </div>
+
+        <div id="tasksList">
+            <!-- Tareas cargarán aquí -->
+            <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                Cargando tareas...
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase y Lógica -->
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/tareas.js"></script>
+</body>
+
+</html>

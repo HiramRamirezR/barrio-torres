@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { firebaseConfig } from "./firebase-config.js";
+import { getRoleByEmail } from "./roles.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -28,17 +29,31 @@ onAuthStateChanged(auth, (user) => {
     const userImg = document.getElementById('userImg');
 
     if (user) {
+        const userRoleInfo = getRoleByEmail(user.email);
+
+        // Si no está en la lista de autorizados, cerrar sesión o avisar
+        if (userRoleInfo.nivel === 'guest') {
+            alert("Acceso no autorizado. Contacte al administrador.");
+            signOut(auth);
+            return;
+        }
+
         if (userProfile) userProfile.style.display = 'flex';
         if (loginPrompt) loginPrompt.style.display = 'none';
-        if (userName) userName.textContent = user.displayName;
+
+        // Mostrar nombre + rol
+        if (userName) userName.innerHTML = `${user.displayName} <br><small style="font-weight:400; color:var(--text-muted)">${userRoleInfo.rol}</small>`;
         if (userImg) userImg.src = user.photoURL;
+
+        // Guardar info globalmente para otros scripts
+        window.currentUserRole = userRoleInfo;
+
     } else {
         if (userProfile) userProfile.style.display = 'none';
         if (loginPrompt) loginPrompt.style.display = 'block';
 
-        // Redirect if on protected page
         const path = window.location.pathname;
-        if (path.includes('discursos.html')) {
+        if (path.includes('discursos.html') || path.includes('tareas.html') || (path.includes('index.html') && path !== '/')) {
             window.location.href = 'login.html';
         }
     }

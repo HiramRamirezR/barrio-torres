@@ -23,6 +23,24 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTable(e.target.value);
         });
     }
+
+    // Esperar a que el rol esté definido
+    const checkRole = setInterval(() => {
+        if (window.currentUserRole) {
+            clearInterval(checkRole);
+            const isAdmin = window.currentUserRole.nivel === 'admin';
+
+            // Ocultar botones de administración si no es admin
+            if (!isAdmin) {
+                const adminButtons = document.querySelectorAll('button[onclick*="openImportModal"], button[onclick*="deduplicateMembers"], button[onclick*="markSuggestedAsLessActive"], button[onclick*="nextSuggestion"]');
+                adminButtons.forEach(btn => btn.style.display = 'none');
+
+                // También el botón de registrar discurso en la sugerencia
+                const regBtn = document.querySelector('.btn-record');
+                if (regBtn) regBtn.style.display = 'none';
+            }
+        }
+    }, 100);
 });
 
 async function loadData() {
@@ -169,18 +187,10 @@ function renderTable(search = '') {
     if (counter) counter.textContent = filtered.length;
 
     filtered.forEach(m => {
-        const tr = document.createElement('tr');
-        if (m.isLessActive) tr.style.opacity = '0.5';
+        const tr = document.createElement('div'); // Cambiado a div para manejo de clases si fuera necesario, o mantener tr
+        const isAdmin = window.currentUserRole?.nivel === 'admin';
 
-        tr.innerHTML = `
-            <td data-label="Miembro">
-                <div style="font-weight:600">${m.nombre}</div>
-                <div style="font-size:0.65rem; color:var(--text-muted)">🎂 ${m.fechaNacimiento || 'Sin fecha'}</div>
-            </td>
-            <td data-label="Org."><span class="tag ${getOrgClass(m.organizacion)}">${m.organizacion}</span></td>
-            <td data-label="Edad">${m.edad || '--'}</td>
-            <td data-label="Última Fecha">${formatDate(m.lastDate)}</td>
-            <td data-label="Tema">${m.lastTopic || '---'}</td>
+        const actionHtml = isAdmin ? `
             <td data-label="Acción">
                 <button class="btn btn" onclick="window.prepareRecord('${m.id}', '${m.nombre}')" style="font-size:0.75rem; border:1px solid #ddd">
                     ${m.lastDate ? 'Editar' : 'Asignar'}
@@ -196,8 +206,26 @@ function renderTable(search = '') {
                     Skip/Salud
                 </div>
             </td>
+        ` : `
+            <td data-label="Acción">---</td>
+            <td data-label="Estado">---</td>
         `;
-        tbody.appendChild(tr);
+
+        const trElement = document.createElement('tr');
+        if (m.isLessActive) trElement.style.opacity = '0.5';
+
+        trElement.innerHTML = `
+            <td data-label="Miembro">
+                <div style="font-weight:600">${m.nombre}</div>
+                <div style="font-size:0.65rem; color:var(--text-muted)">🎂 ${m.fechaNacimiento || 'Sin fecha'}</div>
+            </td>
+            <td data-label="Org."><span class="tag ${getOrgClass(m.organizacion)}">${m.organizacion}</span></td>
+            <td data-label="Edad">${m.edad || '--'}</td>
+            <td data-label="Última Fecha">${formatDate(m.lastDate)}</td>
+            <td data-label="Tema">${m.lastTopic || '---'}</td>
+            ${actionHtml}
+        `;
+        tbody.appendChild(trElement);
     });
 }
 
