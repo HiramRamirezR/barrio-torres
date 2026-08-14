@@ -283,6 +283,166 @@ nav {
     color: var(--text-muted);
 }
 
+/* --- Progress Donut Chart --- */
+.donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.donut {
+    width: 220px;
+    height: 220px;
+}
+
+.donut-bg {
+    fill: none;
+    stroke: #f1f5f9;
+    stroke-width: 22;
+}
+
+.donut-seg {
+    fill: none;
+    stroke-width: 22;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.5s ease;
+}
+
+.donut-spoke {
+    stroke: var(--success);
+}
+
+.donut-pending {
+    stroke: #e2e8f0;
+}
+
+.donut-pct {
+    font-size: 30px;
+    font-weight: 700;
+    fill: var(--text-main);
+}
+
+.donut-label {
+    font-size: 11px;
+    fill: var(--text-muted);
+}
+
+.donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-item .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* --- History / Ranking --- */
+.ranking-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .ranking-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ranking-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 1rem;
+}
+
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.ranking-item {
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+}
+
+.ranking-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ranking-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--primary);
+}
+
+.ranking-name:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.ranking-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.ranking-bar {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+
+.ranking-bar div {
+    height: 100%;
+    background: var(--success);
+    border-radius: 4px;
+}
+
+/* --- History Modal --- */
+.history-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.history-item:last-child {
+    border-bottom: none;
+}
+
+#historyList {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
 /* --- Tables & Lists --- */
 table {
     width: 100%;

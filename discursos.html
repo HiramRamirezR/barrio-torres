@@ -83,6 +83,35 @@
             </div>
         </section>
 
+        <!-- Progress Chart -->
+        <section class="card" style="margin-bottom: 2rem;">
+            <div class="section-title">
+                <h2>Progreso de Discursos</h2>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Miembros activos fuera de Primaria</span>
+            </div>
+            <div id="progressChart">
+                <div style="color:var(--text-muted); padding:1rem;">Cargando...</div>
+            </div>
+        </section>
+
+        <!-- History / Ranking -->
+        <section class="card" style="margin-bottom: 2rem;">
+            <div class="section-title">
+                <h2>Histórico por Miembro</h2>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Click en un nombre para ver su historial</span>
+            </div>
+            <div class="ranking-grid">
+                <div>
+                    <h3 class="ranking-title">Ya han discursado</h3>
+                    <div id="rankingSpoke"></div>
+                </div>
+                <div>
+                    <h3 class="ranking-title">Pendientes de asignar</h3>
+                    <div id="rankingPending"></div>
+                </div>
+            </div>
+        </section>
+
         <!-- Master List -->
         <section class="card">
             <div class="section-title">
@@ -127,6 +156,7 @@
                         <th>Edad</th>
                         <th>Última Fecha</th>
                         <th>Tema</th>
+                        <th># Discursos</th>
                         <th>Acción</th>
                         <th>Estado</th>
                     </tr>
@@ -169,12 +199,27 @@
             </div>
             <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
                 Pegue los datos del Excel/PDF. <br>
-                Formato: <strong>Nombre, Sexo, Edad, Fecha de Nacimiento</strong>
+                Formato: <strong>Nombre, Sexo, Edad, Fecha de Nacimiento</strong><br>
+                <strong>Sexo:</strong> V (varón) o M (mujer).<br>
+                La organización se asigna automáticamente según edad y sexo.<br>
+                <strong>No se duplican miembros:</strong> si el nombre y la fecha de nacimiento ya existen, se
+                omite sin borrar ni modificar sus datos guardados (ideal para agregar solo a los nuevos
+                bautizados).
             </p>
             <textarea id="csvData" class="search-input" rows="8"
-                placeholder="Adame Neri María, M, 63, 21 Jul 1962&#10;Alemán Escamilla Nefi, V, 37, 15 Jun 1988"></textarea>
+                placeholder="Apellido, Nombre, V, 37, 15 Jun 1988&#10;Apellido, Nombre, M, 63, 21 Jul 1962"></textarea>
             <button class="btn btn-primary" onclick="processImport()" style="width:100%;">Cargar a Base de
                 Datos</button>
+        </div>
+
+        <!-- History Modal -->
+        <div class="card" id="historyModal" style="max-width: 500px; width: 90%; display: none;">
+            <div class="section-title">
+                <h2>Historial de Discursos</h2>
+                <button onclick="closeModal()" style="background:none; border:none; cursor:pointer;">&times;</button>
+            </div>
+            <p id="historyMemberName" style="font-weight:700; margin-bottom: 1rem;"></p>
+            <div id="historyList"></div>
         </div>
     </div>
 

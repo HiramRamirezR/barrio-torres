@@ -7,6 +7,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 let allMembers = [];
+let allDiscursos = [];
 let currentFilter = 'all';
 let hideLessActive = false;
 let showOnlyParticipants = false;
@@ -51,6 +52,14 @@ async function loadData() {
             allMembers.push({ id: doc.id, ...doc.data() });
         });
 
+        const discursosSnapshot = await getDocs(collection(db, "discursos"));
+        allDiscursos = [];
+        discursosSnapshot.forEach((doc) => {
+            allDiscursos.push({ id: doc.id, ...doc.data() });
+        });
+
+        await migrateHistory();
+
         skippedSuggestions = new Set(); // Reset skipped on reload
         updateUI();
     } catch (e) {
@@ -61,7 +70,45 @@ async function loadData() {
 function updateUI() {
     renderTable();
     renderRecent();
+    renderChart();
+    renderRanking();
     calculateSuggestion();
+}
+
+// --- Histórico de discursos ---
+// Migra los lastDate/lastTopic existentes a la colección "discursos" (idempotente)
+async function migrateHistory() {
+    const hasRecord = new Set(allDiscursos.map(d => d.miembroId));
+    for (const m of allMembers) {
+        if (m.lastDate && !m.migratedDiscursos && !hasRecord.has(m.id)) {
+            await addDoc(collection(db, "discursos"), {
+                miembroId: m.id,
+                nombre: m.nombre,
+                fecha: m.lastDate,
+                tema: m.lastTopic || ''
+            });
+            await updateDoc(doc(db, "miembros", m.id), { migratedDiscursos: true });
+            allDiscursos.push({ id: null, miembroId: m.id, nombre: m.nombre, fecha: m.lastDate, tema: m.lastTopic || '' });
+        }
+    }
+}
+
+function discursosCount(memberId) {
+    return allDiscursos.filter(d => d.miembroId === memberId).length;
+}
+
+function discursosOf(memberId) {
+    return allDiscursos
+        .filter(d => d.miembroId === memberId)
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+}
+
+function isElegible(m) {
+    return !m.isLessActive && !m.skip && m.organizacion !== 'Primaria';
+}
+
+function hasSpoken(m) {
+    return discursosCount(m.id) > 0 || !!m.lastDate;
 }
 
 // Helper para evitar discrepancia de 1 día por zonas horarias
@@ -223,6 +270,7 @@ function renderTable(search = '') {
             <td data-label="Edad">${m.edad || '--'}</td>
             <td data-label="Última Fecha">${formatDate(m.lastDate)}</td>
             <td data-label="Tema">${m.lastTopic || '---'}</td>
+            <td data-label="# Discursos">${discursosCount(m.id)}</td>
             ${actionHtml}
         `;
         tbody.appendChild(trElement);
@@ -257,6 +305,121 @@ function renderRecent() {
         list.appendChild(card);
     });
 }
+
+// --- Progress Chart (Donut SVG) ---
+function renderChart() {
+    const pool = allMembers.filter(isElegible);
+    const spoke = pool.filter(hasSpoken).length;
+    const pending = pool.length - spoke;
+    const total = pool.length;
+
+    const spokePct = total > 0 ? Math.round((spoke / total) * 100) : 0;
+    const pendingPct = total > 0 ? Math.round((pending / total) * 100) : 0;
+
+    const chartEl = document.getElementById('progressChart');
+    if (!chartEl) return;
+
+    const radius = 80;
+    const circumference = 2 * Math.PI * radius;
+    const gap = 6;
+    const spokeLen = total > 0 ? (spoke / total) * circumference : 0;
+    const pendLen = total > 0 ? (pending / total) * circumference : 0;
+    const spokeSeg = Math.max(spokeLen - (spoke > 0 ? gap : 0), 0);
+    const pendSeg = Math.max(pendLen - (pending > 0 ? gap : 0), 0);
+
+    chartEl.innerHTML = `
+        <div class="donut-wrap">
+            <svg viewBox="0 0 200 200" class="donut">
+                <circle class="donut-bg" cx="100" cy="100" r="${radius}"/>
+                <circle class="donut-seg donut-spoke" cx="100" cy="100" r="${radius}"
+                    stroke-dasharray="${spokeSeg} ${circumference}"
+                    transform="rotate(-90 100 100)"/>
+                <circle class="donut-seg donut-pending" cx="100" cy="100" r="${radius}"
+                    stroke-dasharray="${pendSeg} ${circumference}"
+                    stroke-dashoffset="${-(spokeLen + gap)}"
+                    transform="rotate(-90 100 100)"/>
+                <text x="100" y="94" text-anchor="middle" class="donut-pct">${spokePct}%</text>
+                <text x="100" y="116" text-anchor="middle" class="donut-label">ya discursaron</text>
+            </svg>
+            <div class="donut-legend">
+                <div class="legend-item"><span class="dot" style="background:#10b981"></span> Ya discursó: <strong>${spoke}</strong> (${spokePct}%)</div>
+                <div class="legend-item"><span class="dot" style="background:#e2e8f0"></span> Pendiente: <strong>${pending}</strong> (${pendingPct}%)</div>
+                <div class="legend-item"><span class="dot" style="background:#94a3b8"></span> Total elegible: <strong>${total}</strong></div>
+            </div>
+        </div>
+    `;
+}
+
+// --- History / Ranking ---
+function renderRanking() {
+    const pool = allMembers.filter(isElegible);
+
+    const spoke = pool.filter(hasSpoken)
+        .sort((a, b) => discursosCount(b.id) - discursosCount(a.id) || a.nombre.localeCompare(b.nombre));
+    const pending = pool.filter(m => !hasSpoken(m))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    const maxCount = spoke.length > 0 ? discursosCount(spoke[0].id) : 1;
+
+    renderRankingList('rankingSpoke', spoke, maxCount, true);
+    renderRankingList('rankingPending', pending, 1, false);
+}
+
+function renderRankingList(containerId, list, maxCount, withBar) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '';
+
+    if (list.length === 0) {
+        el.innerHTML = '<div style="color:var(--text-muted); font-size:0.875rem;">Sin resultados.</div>';
+        return;
+    }
+
+    const listWrap = document.createElement('div');
+    listWrap.className = 'ranking-list';
+    list.forEach(m => {
+        const count = discursosCount(m.id);
+        const pct = withBar && maxCount > 0 ? Math.round((count / maxCount) * 100) : 0;
+        const row = document.createElement('div');
+        row.className = 'ranking-item';
+        row.innerHTML = `
+            <div class="ranking-info">
+                <span class="ranking-name" onclick="window.openHistoryModal('${m.id}')">${m.nombre}</span>
+                <span class="ranking-count">${count} ${count === 1 ? 'discurso' : 'discursos'}</span>
+            </div>
+            ${withBar ? `<div class="ranking-bar"><div style="width:${pct}%"></div></div>` : ''}
+        `;
+        listWrap.appendChild(row);
+    });
+    el.appendChild(listWrap);
+}
+
+window.openHistoryModal = (id) => {
+    const member = allMembers.find(m => m.id === id);
+    if (!member) return;
+
+    document.getElementById('historyMemberName').textContent = member.nombre;
+    const listEl = document.getElementById('historyList');
+    listEl.innerHTML = '';
+
+    const discursos = discursosOf(id);
+    if (discursos.length === 0) {
+        listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.875rem; padding:1.5rem 0; text-align:center;">Este miembro aún no tiene discursos registrados.</div>';
+    } else {
+        discursos.forEach(d => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `
+                <div style="font-weight:600; font-size:0.875rem;">${formatDate(d.fecha)}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">${d.tema || '---'}</div>
+            `;
+            listEl.appendChild(item);
+        });
+    }
+
+    document.getElementById('modalOverlay').style.display = 'flex';
+    document.getElementById('historyModal').style.display = 'block';
+};
 
 // --- Global Actions (exposed to window) ---
 window.filterByOrg = (org) => {
@@ -344,6 +507,7 @@ window.closeModal = () => {
     document.getElementById('modalOverlay').style.display = 'none';
     document.getElementById('recordModal').style.display = 'none';
     document.getElementById('importModal').style.display = 'none';
+    document.getElementById('historyModal').style.display = 'none';
 };
 
 window.saveDiscurso = async () => {
@@ -356,10 +520,34 @@ window.saveDiscurso = async () => {
     }
 
     const memberRef = doc(db, "miembros", window.currentRecordingId);
-    await updateDoc(memberRef, {
-        lastDate: date,
-        lastTopic: topic
-    });
+    const member = allMembers.find(m => m.id === window.currentRecordingId);
+
+    // Discurso nuevo si no había registro o la fecha cambió respecto a la última guardada
+    const isNewTalk = !member?.lastDate || date !== member.lastDate;
+
+    if (isNewTalk) {
+        await updateDoc(memberRef, {
+            lastDate: date,
+            lastTopic: topic,
+            migratedDiscursos: true
+        });
+        await addDoc(collection(db, "discursos"), {
+            miembroId: window.currentRecordingId,
+            nombre: member?.nombre || '',
+            fecha: date,
+            tema: topic
+        });
+    } else {
+        // Corregir el último discurso registrado (evita duplicados al editar)
+        const entry = allDiscursos.find(d => d.miembroId === window.currentRecordingId && d.fecha === member.lastDate)
+            || discursosOf(window.currentRecordingId)[0];
+        if (entry) {
+            await updateDoc(doc(db, "discursos", entry.id), { fecha: date, tema: topic });
+            entry.fecha = date;
+            entry.tema = topic;
+        }
+        await updateDoc(memberRef, { lastDate: date, lastTopic: topic });
+    }
 
     closeModal();
     loadData(); // Reload
@@ -373,7 +561,8 @@ window.openImportModal = () => {
 window.processImport = async () => {
     const text = document.getElementById('csvData').value;
     const lines = text.split('\n');
-    let count = 0;
+    let added = 0;
+    let skipped = 0;
 
     const btn = event.target;
     const originalText = btn.textContent;
@@ -400,6 +589,12 @@ window.processImport = async () => {
         return result;
     };
 
+    // Claves de los miembros ya existentes para no duplicar ni pisar datos
+    const existingKeys = new Set();
+    allMembers.forEach(m => {
+        existingKeys.add(`${removeAccents(m.nombre)}|${removeAccents(m.fechaNacimiento || '')}`);
+    });
+
     for (let line of lines) {
         if (!line.trim()) continue;
 
@@ -414,6 +609,11 @@ window.processImport = async () => {
             const org = determineOrganization(sexo, edad);
 
             if (nombre && org) {
+                const key = `${removeAccents(nombre)}|${removeAccents(fechaNac)}`;
+                if (existingKeys.has(key)) {
+                    skipped++;
+                    continue;
+                }
                 await addDoc(collection(db, "miembros"), {
                     nombre,
                     sexo,
@@ -425,14 +625,15 @@ window.processImport = async () => {
                     lastDate: null,
                     lastTopic: null
                 });
-                count++;
+                existingKeys.add(key);
+                added++;
             }
         }
     }
 
     btn.disabled = false;
     btn.textContent = originalText;
-    alert(`Se importaron ${count} miembros exitosamente.`);
+    alert(`Se importaron ${added} nuevos miembros. ${skipped} ya existían y se omitieron.`);
     closeModal();
     loadData();
 };
