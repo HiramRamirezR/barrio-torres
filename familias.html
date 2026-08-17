@@ -36,7 +36,7 @@
                 <p id="viewSubtitle">Lista de familias según el estado de actividad de sus integrantes.</p>
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="exportFamiliesCSV()">Exportar CSV</button>
+                <button class="btn btn-primary" onclick="exportFamiliesPDF()">Exportar PDF</button>
             </div>
         </header>
 
@@ -104,6 +104,8 @@
 
     <script type="module" src="js/auth.js"></script>
     <script type="module" src="js/familias.js"></script>
+
+    <div id="printReport" class="print-report" style="display:none;"></div>
 </body>
 
 </html>

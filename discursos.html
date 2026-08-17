@@ -142,9 +142,6 @@
                     </select>
                     <input type="text" id="memberSearch" placeholder="Nombre o tema..." class="search-input"
                         style="margin-bottom: 0; min-width: 200px;">
-                    <button class="btn" style="background: #f1f5f9; color: #475569;"
-                        onclick="window.deduplicateMembers()">Limpiar Duplicados</button>
-                    <button class="btn btn-primary" onclick="openImportModal()">Importar</button>
                 </div>
             </div>
 
@@ -193,27 +190,6 @@
                 </div>
                 <button class="btn btn-primary" onclick="saveDiscurso()">Guardar Participación</button>
             </div>
-        </div>
-
-        <!-- Import Modal -->
-        <div class="card" id="importModal" style="max-width: 500px; width: 90%; display: none;">
-            <div class="section-title">
-                <h2>Importar Miembros (CSV)</h2>
-                <button onclick="closeModal()" style="background:none; border:none; cursor:pointer;">&times;</button>
-            </div>
-            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">
-                Pegue los datos del Excel/PDF. <br>
-                Formato: <strong>Nombre, Sexo, Edad, Fecha de Nacimiento</strong><br>
-                <strong>Sexo:</strong> V (varón) o M (mujer).<br>
-                La organización se asigna automáticamente según edad y sexo.<br>
-                <strong>No se duplican miembros:</strong> si el nombre y la fecha de nacimiento ya existen, se
-                omite sin borrar ni modificar sus datos guardados (ideal para agregar solo a los nuevos
-                bautizados).
-            </p>
-            <textarea id="csvData" class="search-input" rows="8"
-                placeholder="Apellido, Nombre, V, 37, 15 Jun 1988&#10;Apellido, Nombre, M, 63, 21 Jul 1962"></textarea>
-            <button class="btn btn-primary" onclick="processImport()" style="width:100%;">Cargar a Base de
-                Datos</button>
         </div>
 
         <!-- History Modal -->

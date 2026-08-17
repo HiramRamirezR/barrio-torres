@@ -254,35 +254,49 @@ window.closeModal = () => {
     currentMemberForMove = null;
 };
 
-// --- Exportar CSV ---
-window.exportFamiliesCSV = () => {
+// --- Exportar PDF (imprimir) ---
+window.exportFamiliesPDF = () => {
     const families = getFilteredFamilies();
-    const rows = ['Familia,Nombre,Sexo,Edad,Fecha de nacimiento,Organizacion,Estado'];
+    const report = document.getElementById('printReport');
+    if (!report) return;
+
+    const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const activas = families.filter(f => f.status === 'activa').length;
+    const inactivas = families.length - activas;
+
+    let html = `
+        <h1>Familias del Barrio</h1>
+        <p class="print-sub">Generado el ${today}</p>
+        <div class="print-summary">
+            <span>Total: <strong>${families.length}</strong></span>
+            <span>Activas: <strong>${activas}</strong></span>
+            <span>Inactivas: <strong>${inactivas}</strong></span>
+        </div>
+    `;
 
     families.forEach(f => {
-        f.members.forEach(m => {
-            const nombre = /,/.test(m.nombre) ? `"${m.nombre}"` : m.nombre;
-            rows.push([
-                f.name,
-                nombre,
-                m.sexo || '',
-                m.edad ?? '',
-                m.fechaNacimiento || '',
-                m.organizacion || '',
-                m.isLessActive ? 'Menos activo' : 'Activo'
-            ].join(','));
-        });
+        html += `
+            <div class="print-family">
+                <div class="print-family-head">
+                    <span class="print-family-name">${f.name}</span>
+                    <span class="print-status ${f.status}">${f.status === 'activa' ? 'Activa' : 'Inactiva'}</span>
+                </div>
+                <ul>
+                    ${f.members.map(m => `
+                        <li class="${m.isLessActive ? 'less' : ''}">
+                            ${m.nombre}
+                            ${m.organizacion ? `<em>— ${m.organizacion}</em>` : ''}
+                            ${m.isLessActive ? '<span class="print-less">(menos activo)</span>' : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
     });
 
-    const blob = new Blob(["\uFEFF" + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'familias.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    report.innerHTML = html;
+    report.style.display = 'block';
+    window.print();
 };
 
 // --- Initialization ---

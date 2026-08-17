@@ -53,7 +53,7 @@ onAuthStateChanged(auth, (user) => {
         if (loginPrompt) loginPrompt.style.display = 'block';
 
         const path = window.location.pathname;
-        if (path.includes('discursos.html') || path.includes('tareas.html') || path.includes('familias.html') || (path.includes('index.html') && path !== '/')) {
+        if (path.includes('discursos.html') || path.includes('tareas.html') || path.includes('familias.html') || path.includes('directorio.html') || (path.includes('index.html') && path !== '/')) {
             window.location.href = 'login.html';
         }
     }

@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Ocultar botones de administración si no es admin
             if (!isAdmin) {
-                const adminButtons = document.querySelectorAll('button[onclick*="openImportModal"], button[onclick*="deduplicateMembers"], button[onclick*="markSuggestedAsLessActive"], button[onclick*="nextSuggestion"]');
+                const adminButtons = document.querySelectorAll('button[onclick*="markSuggestedAsLessActive"], button[onclick*="nextSuggestion"]');
                 adminButtons.forEach(btn => btn.style.display = 'none');
 
                 // También el botón de registrar discurso en la sugerencia
@@ -589,7 +589,6 @@ window.nextSuggestion = () => {
 window.closeModal = () => {
     document.getElementById('modalOverlay').style.display = 'none';
     document.getElementById('recordModal').style.display = 'none';
-    document.getElementById('importModal').style.display = 'none';
     document.getElementById('historyModal').style.display = 'none';
 };
 
@@ -633,131 +632,6 @@ window.saveDiscurso = async () => {
     closeModal();
     loadData(); // Reload
 };
-
-window.openImportModal = () => {
-    document.getElementById('modalOverlay').style.display = 'flex';
-    document.getElementById('importModal').style.display = 'block';
-};
-
-window.processImport = async () => {
-    const text = document.getElementById('csvData').value;
-    const lines = text.split('\n');
-    let added = 0;
-    let skipped = 0;
-
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "Importando... (Esto puede tardar)";
-
-    // Función para separar por comas respetando comillas
-    const parseCSVLine = (line) => {
-        const result = [];
-        let cur = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') {
-                inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-                result.push(cur.trim());
-                cur = '';
-            } else {
-                cur += char;
-            }
-        }
-        result.push(cur.trim());
-        return result;
-    };
-
-    // Claves de los miembros ya existentes para no duplicar ni pisar datos
-    const existingKeys = new Set();
-    allMembers.forEach(m => {
-        existingKeys.add(`${removeAccents(m.nombre)}|${removeAccents(m.fechaNacimiento || '')}`);
-    });
-
-    for (let line of lines) {
-        if (!line.trim()) continue;
-
-        const parts = parseCSVLine(line);
-        // Formato esperado: Nombre, Sexo, Edad, Fecha de Nacimiento
-        if (parts.length >= 3) {
-            let nombre = parts[0].replace(/^"|"$/g, ''); // Quitar comillas si quedaron
-            const sexo = parts[1].toUpperCase();
-            const edad = parseInt(parts[2]);
-            const fechaNac = parts[3] ? parts[3].replace(/^"|"$/g, '') : '';
-
-            const org = determineOrganization(sexo, edad);
-
-            if (nombre && org) {
-                const key = `${removeAccents(nombre)}|${removeAccents(fechaNac)}`;
-                if (existingKeys.has(key)) {
-                    skipped++;
-                    continue;
-                }
-                await addDoc(collection(db, "miembros"), {
-                    nombre,
-                    sexo,
-                    edad,
-                    fechaNacimiento: fechaNac,
-                    organizacion: org,
-                    isLessActive: false,
-                    skip: false,
-                    lastDate: null,
-                    lastTopic: null
-                });
-                existingKeys.add(key);
-                added++;
-            }
-        }
-    }
-
-    btn.disabled = false;
-    btn.textContent = originalText;
-    alert(`Se importaron ${added} nuevos miembros. ${skipped} ya existían y se omitieron.`);
-    closeModal();
-    loadData();
-};
-
-window.deduplicateMembers = async () => {
-    if (!confirm("¿Desea eliminar los miembros duplicados? Esto dejará solo un registro por cada nombre y fecha de nacimiento.")) return;
-
-    const btn = event.target;
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "Limpiando...";
-
-    const seen = new Set();
-    let deletedCount = 0;
-
-    // Usamos un for...of para manejar la asincronía de deleteDoc
-    for (const m of allMembers) {
-        const key = `${m.nombre}-${m.fechaNacimiento}`.toLowerCase();
-        if (seen.has(key)) {
-            const { deleteDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-            await deleteDoc(doc(db, "miembros", m.id));
-            deletedCount++;
-        } else {
-            seen.add(key);
-        }
-    }
-
-    btn.disabled = false;
-    btn.textContent = originalText;
-    alert(`Limpieza terminada. Se eliminaron ${deletedCount} duplicados.`);
-    loadData();
-};
-
-function determineOrganization(sexo, edad) {
-    if (edad >= 18) {
-        return (sexo === 'V') ? 'Quórum Élderes' : 'Soc. Socorro';
-    } else if (edad >= 11) {
-        return (sexo === 'V') ? 'HHJJ' : 'MMJJ';
-    } else if (edad >= 0) {
-        return 'Primaria';
-    }
-    return 'Desconocido';
-}
 
 function getOrgClass(org) {
     const classes = {
