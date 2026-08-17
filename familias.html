@@ -95,6 +95,15 @@
                     <button class="btn btn-primary" onclick="confirmMove()">Mover a esta familia</button>
                     <button class="btn" id="btnRevert" onclick="revertMember()">Volver al apellido (separar)</button>
                 </div>
+                <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border-color);">
+                    <button class="btn" id="btnNewFamily" onclick="toggleNewFamilyInput()">＋ Crear nueva familia</button>
+                    <div id="newFamilyForm" style="display:none; margin-top:0.75rem;">
+                        <label class="move-label">Nombre de la nueva familia:</label>
+                        <input type="text" id="newFamilyName" class="move-select" placeholder="Ej: García López">
+                        <button class="btn btn-primary" style="margin-top:0.5rem; width:100%;"
+                            onclick="createAndMove()">Crear familia y mover aquí</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn" onclick="closeModal()">Cerrar</button>

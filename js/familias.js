@@ -60,9 +60,11 @@ function buildFamilies() {
 
     return [...map.entries()].map(([key, members]) => {
         const activos = members.filter(isActiveMember).length;
+        // Si algún integrante tiene nombre manual de familia, se usa ese
+        const manualName = members.find(m => m.familiaNombre)?.familiaNombre;
         return {
             key,
-            name: displayNameOf(members),
+            name: manualName || displayNameOf(members),
             members,
             activos,
             menosActivos: members.length - activos,
@@ -221,6 +223,14 @@ window.openMoveModal = (memberId) => {
     const revertBtn = document.getElementById('btnRevert');
     revertBtn.style.display = hasManual ? 'inline-block' : 'none';
 
+    // Resetear el formulario de nueva familia
+    const newForm = document.getElementById('newFamilyForm');
+    if (newForm) newForm.style.display = 'none';
+    const btnNew = document.getElementById('btnNewFamily');
+    if (btnNew) btnNew.textContent = '＋ Crear nueva familia';
+    const newInput = document.getElementById('newFamilyName');
+    if (newInput) newInput.value = '';
+
     document.getElementById('modalOverlay').style.display = 'flex';
     document.getElementById('moveModal').style.display = 'block';
 };
@@ -230,10 +240,61 @@ window.confirmMove = async () => {
     const target = document.getElementById('moveTarget').value;
     if (!target) return;
 
+    // Llevar también el nombre manual de la familia destino si lo tiene
+    const families = buildFamilies();
+    const targetFamily = families.find(f => f.key === target);
+    const manualName = targetFamily?.members.find(m => m.familiaNombre)?.familiaNombre;
+
     const memberRef = doc(db, "miembros", currentMemberForMove.id);
-    await updateDoc(memberRef, { familia: target });
+    const data = { familia: target };
+    if (manualName) data.familiaNombre = manualName;
+    else data.familiaNombre = deleteField();
+
+    await updateDoc(memberRef, data);
     const m = allMembers.find(x => x.id === currentMemberForMove.id);
-    if (m) m.familia = target;
+    if (m) {
+        m.familia = target;
+        if (manualName) m.familiaNombre = manualName;
+        else delete m.familiaNombre;
+    }
+    closeModal();
+    renderAll();
+};
+
+window.toggleNewFamilyInput = () => {
+    const form = document.getElementById('newFamilyForm');
+    const btnNew = document.getElementById('btnNewFamily');
+    const show = form.style.display === 'none';
+    form.style.display = show ? 'block' : 'none';
+    if (btnNew) btnNew.textContent = show ? 'Cancelar' : '＋ Crear nueva familia';
+    if (show) document.getElementById('newFamilyName').focus();
+};
+
+window.createAndMove = async () => {
+    if (!currentMemberForMove) return;
+    const name = document.getElementById('newFamilyName').value.trim();
+    if (!name) {
+        alert("Escriba el nombre de la nueva familia");
+        return;
+    }
+
+    // Clave única: prefijo "manual:" + nombre normalizado (evita chocar con apellidos automáticos)
+    const slug = removeAccents(name).toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'familia';
+    let key = `manual:${slug}`;
+    const existing = new Set(buildFamilies().map(f => f.key));
+    let i = 2;
+    while (existing.has(key)) {
+        key = `manual:${slug}-${i}`;
+        i++;
+    }
+
+    const memberRef = doc(db, "miembros", currentMemberForMove.id);
+    await updateDoc(memberRef, { familia: key, familiaNombre: name });
+    const m = allMembers.find(x => x.id === currentMemberForMove.id);
+    if (m) {
+        m.familia = key;
+        m.familiaNombre = name;
+    }
     closeModal();
     renderAll();
 };
@@ -241,9 +302,12 @@ window.confirmMove = async () => {
 window.revertMember = async () => {
     if (!currentMemberForMove) return;
     const memberRef = doc(db, "miembros", currentMemberForMove.id);
-    await updateDoc(memberRef, { familia: deleteField() });
+    await updateDoc(memberRef, { familia: deleteField(), familiaNombre: deleteField() });
     const m = allMembers.find(x => x.id === currentMemberForMove.id);
-    if (m) delete m.familia;
+    if (m) {
+        delete m.familia;
+        delete m.familiaNombre;
+    }
     closeModal();
     renderAll();
 };
