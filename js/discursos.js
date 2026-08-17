@@ -239,9 +239,12 @@ function renderTable(search = '') {
 
         const actionHtml = isAdmin ? `
             <td data-label="Acción">
-                <button class="btn btn" onclick="window.prepareRecord('${m.id}', '${m.nombre}')" style="font-size:0.75rem; border:1px solid #ddd">
-                    ${m.lastDate ? 'Editar' : 'Asignar'}
-                </button>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                    <button class="btn btn" onclick="window.prepareRecord('${m.id}', '${m.nombre}')" style="font-size:0.75rem; border:1px solid #ddd">
+                        ${m.lastDate ? 'Editar' : 'Asignar'}
+                    </button>
+                    ${m.lastDate ? `<button class="btn btn" onclick="window.prepareRecord('${m.id}', '${m.nombre}', 'new')" style="font-size:0.75rem; border:1px solid #ddd" title="Agregar nuevo discurso">＋ Nuevo</button>` : ''}
+                </div>
             </td>
             <td data-label="Estado">
                 <div class="checkbox-wrapper">
@@ -398,11 +401,26 @@ window.openHistoryModal = (id) => {
     const member = allMembers.find(m => m.id === id);
     if (!member) return;
 
+    window.currentHistoryMemberId = id;
     document.getElementById('historyMemberName').textContent = member.nombre;
+
+    const btnAdd = document.getElementById('btnHistoryAdd');
+    if (btnAdd) btnAdd.style.display = window.currentUserRole?.nivel === 'admin' ? 'inline-block' : 'none';
+
+    const form = document.getElementById('historyAddForm');
+    if (form) form.style.display = 'none';
+
+    renderHistoryList();
+
+    document.getElementById('modalOverlay').style.display = 'flex';
+    document.getElementById('historyModal').style.display = 'block';
+};
+
+function renderHistoryList() {
     const listEl = document.getElementById('historyList');
     listEl.innerHTML = '';
 
-    const discursos = discursosOf(id);
+    const discursos = discursosOf(window.currentHistoryMemberId);
     if (discursos.length === 0) {
         listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.875rem; padding:1.5rem 0; text-align:center;">Este miembro aún no tiene discursos registrados.</div>';
     } else {
@@ -416,9 +434,56 @@ window.openHistoryModal = (id) => {
             listEl.appendChild(item);
         });
     }
+}
 
-    document.getElementById('modalOverlay').style.display = 'flex';
-    document.getElementById('historyModal').style.display = 'block';
+window.toggleHistoryAddForm = () => {
+    const form = document.getElementById('historyAddForm');
+    const btnAdd = document.getElementById('btnHistoryAdd');
+    const show = form.style.display === 'none';
+    form.style.display = show ? 'block' : 'none';
+    if (btnAdd) btnAdd.textContent = show ? 'Cancelar' : '＋ Agregar discurso';
+
+    if (show) {
+        const d = new Date();
+        document.getElementById('historyDiscursoDate').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        document.getElementById('historyDiscursoTopic').value = '';
+    }
+};
+
+window.saveHistoryDiscurso = async () => {
+    const id = window.currentHistoryMemberId;
+    if (!id) return;
+
+    const date = document.getElementById('historyDiscursoDate').value;
+    const topic = document.getElementById('historyDiscursoTopic').value;
+    if (!date || !topic) {
+        alert("Por favor complete fecha y tema");
+        return;
+    }
+
+    const memberRef = doc(db, "miembros", id);
+    const member = allMembers.find(m => m.id === id);
+
+    await updateDoc(memberRef, { lastDate: date, lastTopic: topic, migratedDiscursos: true });
+    await addDoc(collection(db, "discursos"), {
+        miembroId: id,
+        nombre: member?.nombre || '',
+        fecha: date,
+        tema: topic
+    });
+
+    allDiscursos.push({ id: null, miembroId: id, nombre: member?.nombre || '', fecha: date, tema: topic });
+    if (member) { member.lastDate = date; member.lastTopic = topic; }
+
+    document.getElementById('historyAddForm').style.display = 'none';
+    const btnAdd = document.getElementById('btnHistoryAdd');
+    if (btnAdd) btnAdd.textContent = '＋ Agregar discurso';
+
+    renderHistoryList();
+    renderRecent();
+    renderChart();
+    renderRanking();
+    renderTable();
 };
 
 // --- Global Actions (exposed to window) ---
@@ -454,23 +519,41 @@ window.toggleStatus = async (id, field, value) => {
     updateUI();
 };
 
-window.prepareRecord = (id, name) => {
+window.prepareRecord = (id, name, mode = null) => {
     window.currentRecordingId = id;
     const member = allMembers.find(m => m.id === id);
 
     document.getElementById('recordMemberName').textContent = name;
 
-    // Fill with existing data if editing
-    if (member && member.lastDate) {
-        document.getElementById('discursoDate').value = member.lastDate;
-        document.getElementById('discursoTopic').value = member.lastTopic || '';
-    } else {
-        document.getElementById('discursoDate').value = '';
-        document.getElementById('discursoTopic').value = '';
-    }
+    const hasLast = !!(member && member.lastDate);
+    const toggle = document.getElementById('recordModeToggle');
+    if (toggle) toggle.style.display = hasLast ? 'flex' : 'none';
+
+    setRecordMode(mode === 'new' ? 'new' : (hasLast ? 'edit' : 'new'));
 
     document.getElementById('modalOverlay').style.display = 'flex';
     document.getElementById('recordModal').style.display = 'block';
+};
+
+window.setRecordMode = (mode) => {
+    window.recordMode = mode;
+    const btnEdit = document.getElementById('btnModeEdit');
+    const btnNew = document.getElementById('btnModeNew');
+    if (btnEdit) btnEdit.className = mode === 'edit' ? 'btn btn-primary' : 'btn';
+    if (btnNew) btnNew.className = mode === 'new' ? 'btn btn-primary' : 'btn';
+
+    const member = allMembers.find(m => m.id === window.currentRecordingId);
+    const dateInput = document.getElementById('discursoDate');
+    const topicInput = document.getElementById('discursoTopic');
+
+    if (mode === 'edit' && member && member.lastDate) {
+        dateInput.value = member.lastDate;
+        topicInput.value = member.lastTopic || '';
+    } else {
+        const d = new Date();
+        dateInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        topicInput.value = '';
+    }
 };
 
 window.openRecordModal = () => {
@@ -522,10 +605,8 @@ window.saveDiscurso = async () => {
     const memberRef = doc(db, "miembros", window.currentRecordingId);
     const member = allMembers.find(m => m.id === window.currentRecordingId);
 
-    // Discurso nuevo si no había registro o la fecha cambió respecto a la última guardada
-    const isNewTalk = !member?.lastDate || date !== member.lastDate;
-
-    if (isNewTalk) {
+    if (window.recordMode === 'new') {
+        // Nuevo discurso: siempre crea un registro nuevo
         await updateDoc(memberRef, {
             lastDate: date,
             lastTopic: topic,
@@ -538,7 +619,7 @@ window.saveDiscurso = async () => {
             tema: topic
         });
     } else {
-        // Corregir el último discurso registrado (evita duplicados al editar)
+        // Editar el último discurso registrado (evita duplicados al editar)
         const entry = allDiscursos.find(d => d.miembroId === window.currentRecordingId && d.fecha === member.lastDate)
             || discursosOf(window.currentRecordingId)[0];
         if (entry) {

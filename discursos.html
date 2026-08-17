@@ -179,6 +179,10 @@
             </div>
             <p id="recordMemberName" style="font-weight:700; margin-bottom: 1rem;"></p>
             <div style="display: grid; gap: 1rem;">
+                <div id="recordModeToggle" style="display:none; gap:0.5rem; flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="btnModeEdit" onclick="setRecordMode('edit')">Editar último</button>
+                    <button class="btn" id="btnModeNew" onclick="setRecordMode('new')">Agregar nuevo</button>
+                </div>
                 <div>
                     <label style="font-size: 0.75rem; font-weight: 600;">Fecha</label>
                     <input type="date" id="discursoDate" class="search-input">
@@ -219,7 +223,24 @@
                 <button onclick="closeModal()" style="background:none; border:none; cursor:pointer;">&times;</button>
             </div>
             <p id="historyMemberName" style="font-weight:700; margin-bottom: 1rem;"></p>
+            <button class="btn btn-primary" id="btnHistoryAdd" onclick="toggleHistoryAddForm()"
+                style="display:none; margin-bottom:0.75rem;">＋ Agregar discurso</button>
             <div id="historyList"></div>
+            <div id="historyAddForm"
+                style="display:none; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border-color);">
+                <div style="display: grid; gap: 0.75rem;">
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600;">Nuevo discurso - Fecha</label>
+                        <input type="date" id="historyDiscursoDate" class="search-input">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 600;">Tema</label>
+                        <input type="text" id="historyDiscursoTopic" class="search-input"
+                            placeholder="Ej: La Expiación">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveHistoryDiscurso()">Guardar Nuevo Discurso</button>
+                </div>
+            </div>
         </div>
     </div>
 
