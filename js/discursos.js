@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, updateDoc, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 import { auth } from "./auth.js";
 
@@ -81,14 +81,14 @@ async function migrateHistory() {
     const hasRecord = new Set(allDiscursos.map(d => d.miembroId));
     for (const m of allMembers) {
         if (m.lastDate && !m.migratedDiscursos && !hasRecord.has(m.id)) {
-            await addDoc(collection(db, "discursos"), {
+            const ref = await addDoc(collection(db, "discursos"), {
                 miembroId: m.id,
                 nombre: m.nombre,
                 fecha: m.lastDate,
                 tema: m.lastTopic || ''
             });
             await updateDoc(doc(db, "miembros", m.id), { migratedDiscursos: true });
-            allDiscursos.push({ id: null, miembroId: m.id, nombre: m.nombre, fecha: m.lastDate, tema: m.lastTopic || '' });
+            allDiscursos.push({ id: ref.id, miembroId: m.id, nombre: m.nombre, fecha: m.lastDate, tema: m.lastTopic || '' });
         }
     }
 }
@@ -424,17 +424,63 @@ function renderHistoryList() {
     if (discursos.length === 0) {
         listEl.innerHTML = '<div style="color:var(--text-muted); font-size:0.875rem; padding:1.5rem 0; text-align:center;">Este miembro aún no tiene discursos registrados.</div>';
     } else {
+        const isAdmin = window.currentUserRole?.nivel === 'admin';
         discursos.forEach(d => {
             const item = document.createElement('div');
             item.className = 'history-item';
             item.innerHTML = `
-                <div style="font-weight:600; font-size:0.875rem;">${formatDate(d.fecha)}</div>
-                <div style="font-size:0.8rem; color:var(--text-muted);">${d.tema || '---'}</div>
+                <div>
+                    <div style="font-weight:600; font-size:0.875rem;">${formatDate(d.fecha)}</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted);">${d.tema || '---'}</div>
+                </div>
+                ${isAdmin ? `<button onclick="window.deleteDiscurso('${d.id}')" title="Eliminar discurso" style="background:#fee2e2; color:#ef4444; border:none; width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:0.9rem; flex-shrink:0;">×</button>` : ''}
             `;
             listEl.appendChild(item);
         });
     }
 }
+
+window.deleteDiscurso = async (discursoId) => {
+    const id = window.currentHistoryMemberId;
+    if (!id) return;
+
+    const entry = allDiscursos.find(d => d.miembroId === id && d.id === discursoId);
+    if (!entry) return;
+
+    if (!confirm(`¿Eliminar el discurso del ${formatDate(entry.fecha)}?`)) return;
+
+    // Eliminar de Firestore
+    if (discursoId) {
+        await deleteDoc(doc(db, "discursos", discursoId));
+    } else {
+        const q = query(collection(db, "discursos"), where("miembroId", "==", id), where("fecha", "==", entry.fecha));
+        const snap = await getDocs(q);
+        if (!snap.empty) await deleteDoc(doc(db, "discursos", snap.docs[0].id));
+    }
+
+    // Quitar del arreglo local
+    allDiscursos = allDiscursos.filter(d => d !== entry);
+
+    // Recalcular el último discurso del miembro
+    const member = allMembers.find(m => m.id === id);
+    const remaining = discursosOf(id);
+    const newest = remaining[0];
+    const memberRef = doc(db, "miembros", id);
+    await updateDoc(memberRef, {
+        lastDate: newest ? newest.fecha : null,
+        lastTopic: newest ? (newest.tema || '') : ''
+    });
+    if (member) {
+        member.lastDate = newest ? newest.fecha : null;
+        member.lastTopic = newest ? (newest.tema || '') : null;
+    }
+
+    renderHistoryList();
+    renderRecent();
+    renderChart();
+    renderRanking();
+    renderTable();
+};
 
 window.toggleHistoryAddForm = () => {
     const form = document.getElementById('historyAddForm');
@@ -465,14 +511,14 @@ window.saveHistoryDiscurso = async () => {
     const member = allMembers.find(m => m.id === id);
 
     await updateDoc(memberRef, { lastDate: date, lastTopic: topic, migratedDiscursos: true });
-    await addDoc(collection(db, "discursos"), {
+    const discursoRef = await addDoc(collection(db, "discursos"), {
         miembroId: id,
         nombre: member?.nombre || '',
         fecha: date,
         tema: topic
     });
 
-    allDiscursos.push({ id: null, miembroId: id, nombre: member?.nombre || '', fecha: date, tema: topic });
+    allDiscursos.push({ id: discursoRef.id, miembroId: id, nombre: member?.nombre || '', fecha: date, tema: topic });
     if (member) { member.lastDate = date; member.lastTopic = topic; }
 
     document.getElementById('historyAddForm').style.display = 'none';
