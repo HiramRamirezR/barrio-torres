@@ -161,7 +161,15 @@ function renderFamilies() {
                             <span class="tag ${getOrgClass(m.organizacion)}">${m.organizacion || '—'}</span>
                             <span class="member-state">${m.isLessActive ? 'Menos activo' : 'Activo'}</span>
                         </div>
-                        ${admin ? `<button class="btn-move" onclick="openMoveModal('${m.id}')" title="Mover de familia">⇄</button>` : ''}
+                        ${admin ? `
+                            <div style="display:flex; align-items:center; gap:0.5rem; flex-shrink:0;">
+                                <label class="checkbox-wrapper" title="Marcar como menos activo">
+                                    <input type="checkbox" ${m.isLessActive ? 'checked' : ''} onchange="window.toggleLessActive('${m.id}', this.checked)">
+                                    Menos activo
+                                </label>
+                                <button class="btn-move" onclick="openMoveModal('${m.id}')" title="Mover de familia">⇄</button>
+                            </div>
+                        ` : ''}
                     </div>
                 `).join('')}
             </div>
@@ -182,6 +190,15 @@ window.filterFamilies = (filter) => {
 };
 
 window.renderFamilies = renderFamilies;
+
+// --- Marcar menos activo ---
+window.toggleLessActive = async (id, value) => {
+    const memberRef = doc(db, "miembros", id);
+    await updateDoc(memberRef, { isLessActive: value });
+    const m = allMembers.find(member => member.id === id);
+    if (m) m.isLessActive = value;
+    renderAll();
+};
 
 // --- Mover / Separar ---
 window.openMoveModal = (memberId) => {
